@@ -52,6 +52,7 @@ public class ProfileContext
 
     private ProfileSource profileSource;
     private Conductor conductor;
+    private String vmId;
 
     private final SimpleObjectProperty<AggregationProfile> profile;
 
@@ -129,6 +130,17 @@ public class ProfileContext
     public void setConductor(Conductor conductor)
     {
         this.conductor = conductor;
+    }
+
+    /**
+     * Sets the id of the monitored VM.
+     * <p>
+     *
+     * @param the id of the monitored VM
+     */
+    public void setVmId(String vmId)
+    {
+        this.vmId = vmId;
     }
 
     /**
@@ -355,6 +367,11 @@ public class ProfileContext
         if (timeline != null)
         {
             timeline.stop();
+        }
+
+        if (vmId != null)
+        {
+            appCtx.releaseVM(vmId);
         }
     }
 }

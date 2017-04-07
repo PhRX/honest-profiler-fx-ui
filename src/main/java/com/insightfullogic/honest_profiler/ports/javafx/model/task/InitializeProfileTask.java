@@ -46,7 +46,7 @@ public class InitializeProfileTask extends Task<ProfileContext>
     public InitializeProfileTask(ApplicationContext applicationContext, Object source, boolean live)
     {
         super();
-        this.appCtx = applicationContext;
+        appCtx = applicationContext;
         this.source = source;
         this.live = live;
     }
@@ -56,8 +56,14 @@ public class InitializeProfileTask extends Task<ProfileContext>
     {
         FileLogSource fileLogSource = getLogSource();
 
-        return (this.source instanceof VirtualMachine || this.live) ? monitor(fileLogSource)
-            : consume(fileLogSource);
+        if (source instanceof VirtualMachine)
+        {
+            ProfileContext result = monitor(fileLogSource);
+            result.setVmId(((VirtualMachine)source).getId());
+            return result;
+        }
+
+        return live ? monitor(fileLogSource) : consume(fileLogSource);
     }
 
     // Guaranteed to be called on the FX thread.
@@ -67,7 +73,7 @@ public class InitializeProfileTask extends Task<ProfileContext>
         super.succeeded();
         // We do this on the FX thread to avoid concurrency issues with the ProfileContext map read/write access in the
         // ApplicationContext.
-        this.appCtx.registerProfileContext(this.getValue());
+        appCtx.registerProfileContext(this.getValue());
     }
 
     // Guaranteed to be called on the FX thread.
@@ -89,7 +95,7 @@ public class InitializeProfileTask extends Task<ProfileContext>
      */
     private ProfileContext newProfileContext(ProfileMode mode, FileLogSource fileLogSource)
     {
-        return new ProfileContext(this.appCtx, getName(), mode, fileLogSource.getFile());
+        return new ProfileContext(appCtx, getName(), mode, fileLogSource.getFile());
     }
 
     /**
@@ -113,9 +119,9 @@ public class InitializeProfileTask extends Task<ProfileContext>
      */
     private FileLogSource getLogSource()
     {
-        return (this.source instanceof VirtualMachine)
-            ? (FileLogSource)((VirtualMachine)this.source).getLogSourceFromVmArgs()
-            : new FileLogSource((File)this.source);
+        return (source instanceof VirtualMachine)
+            ? (FileLogSource)((VirtualMachine)source).getLogSourceFromVmArgs()
+            : new FileLogSource((File)source);
     }
 
     /**
@@ -126,8 +132,8 @@ public class InitializeProfileTask extends Task<ProfileContext>
      */
     private String getName()
     {
-        return (this.source instanceof VirtualMachine) ? getVmName((VirtualMachine)this.source)
-            : ((File)this.source).getName();
+        return (source instanceof VirtualMachine) ? getVmName((VirtualMachine)source)
+            : ((File)source).getName();
 
     }
 

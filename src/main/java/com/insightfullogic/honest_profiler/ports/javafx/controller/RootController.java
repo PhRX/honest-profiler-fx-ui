@@ -156,7 +156,7 @@ public class RootController extends AbstractController implements MachineListene
     }
 
     /**
-     * remove a JVM from the Monitor menu.
+     * Remove a JVM from the Monitor menu.
      * <p>
      *
      * @param vm the JVM to be removed
@@ -164,6 +164,18 @@ public class RootController extends AbstractController implements MachineListene
     private void removeFromMachineMenu(final VirtualMachine vm)
     {
         monitorMenu.getItems().removeIf(node -> vm.getId().equals(node.getId()));
+    }
+
+    /**
+     * Enable a JVM menu item in the Monitor menu.
+     * <p>
+     *
+     * @param id the id of the JVM to be enabled
+     */
+    public void enableMachineMenu(String id)
+    {
+        monitorMenu.getItems().stream().filter(item -> item.getId().equals(id))
+            .forEach(item -> item.setDisable(false));
     }
 
     /**

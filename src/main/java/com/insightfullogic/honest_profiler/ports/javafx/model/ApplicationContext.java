@@ -141,6 +141,17 @@ public final class ApplicationContext
     }
 
     /**
+     * Tells the {@link RootController} to re-enable the VM menu item in the VM menu, if it is still there.
+     * <p>
+     *
+     * @param id the id of the VM for which the menu item should be reenabled
+     */
+    public void releaseVM(String id)
+    {
+        rootController.enableMachineMenu(id);
+    }
+
+    /**
      * Returns a list of the names of all known {@link ProfileContext}s.
      * <p>
      *
