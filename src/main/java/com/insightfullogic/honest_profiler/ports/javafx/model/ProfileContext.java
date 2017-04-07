@@ -5,6 +5,7 @@ import static javafx.util.Duration.seconds;
 import java.io.File;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.insightfullogic.honest_profiler.core.Conductor;
 import com.insightfullogic.honest_profiler.core.aggregation.AggregationProfile;
 import com.insightfullogic.honest_profiler.core.collector.lean.ProfileSource;
 import com.insightfullogic.honest_profiler.core.profiles.lean.LeanProfile;
@@ -48,7 +49,9 @@ public class ProfileContext
     private final File file;
 
     private final ProfileMode mode;
+
     private ProfileSource profileSource;
+    private Conductor conductor;
 
     private final SimpleObjectProperty<AggregationProfile> profile;
 
@@ -59,6 +62,8 @@ public class ProfileContext
 
     // While frozen, incoming profiles are cached here.
     private LeanProfile cachedProfile;
+
+    private int referenceCount;
 
     // Instance Constructors
 
@@ -79,14 +84,14 @@ public class ProfileContext
         this.mode = mode;
         this.file = file;
 
-        this.profileSource = null;
+        profileSource = null;
 
         // Store a unique id for the ProfileContext
-        this.id = counter.incrementAndGet();
+        id = counter.incrementAndGet();
 
-        this.profile = new SimpleObjectProperty<>();
+        profile = new SimpleObjectProperty<>();
 
-        this.refreshInterval = seconds(1);
+        refreshInterval = seconds(1);
     }
 
     // Instance Accessors
@@ -99,7 +104,7 @@ public class ProfileContext
      */
     public File getFile()
     {
-        return this.file;
+        return file;
     }
 
     /**
@@ -115,6 +120,18 @@ public class ProfileContext
     }
 
     /**
+     * Sets the {@link Conductor}. Used only in live profiling, for stopping the monitoring process when the profile is
+     * closed.
+     * <p>
+     *
+     * @param conductor the {@link Conductor} which is responsible for monitoring
+     */
+    public void setConductor(Conductor conductor)
+    {
+        this.conductor = conductor;
+    }
+
+    /**
      * Returns the interval, in seconds, at which the ProfileContext will request new {@link LeanProfile} instances from
      * the {@link ProfileSource}.
      * <p>
@@ -123,7 +140,7 @@ public class ProfileContext
      */
     public int getDuration()
     {
-        return (int)this.refreshInterval.toSeconds();
+        return (int)refreshInterval.toSeconds();
     }
 
     /**
@@ -136,7 +153,7 @@ public class ProfileContext
      */
     public void setDuration(int seconds)
     {
-        this.refreshInterval = seconds(seconds);
+        refreshInterval = seconds(seconds);
         updateTimeline();
     }
 
@@ -148,7 +165,7 @@ public class ProfileContext
      */
     public int getId()
     {
-        return this.id;
+        return id;
     }
 
     /**
@@ -159,7 +176,7 @@ public class ProfileContext
      */
     public String getName()
     {
-        return this.name.get();
+        return name.get();
     }
 
     /**
@@ -170,7 +187,7 @@ public class ProfileContext
      */
     public ProfileMode getMode()
     {
-        return this.mode;
+        return mode;
     }
 
     /**
@@ -181,7 +198,7 @@ public class ProfileContext
      */
     public AggregationProfile getProfile()
     {
-        return this.profile.get();
+        return profile.get();
     }
 
     /**
@@ -192,7 +209,7 @@ public class ProfileContext
      */
     public ObjectProperty<AggregationProfile> profileProperty()
     {
-        return this.profile;
+        return profile;
     }
 
     /**
@@ -204,7 +221,7 @@ public class ProfileContext
      */
     public boolean isFrozen()
     {
-        return this.frozen;
+        return frozen;
     }
 
     /**
@@ -215,24 +232,24 @@ public class ProfileContext
      */
     public void setFrozen(boolean freeze)
     {
-        this.frozen = freeze;
+        frozen = freeze;
         if (freeze)
         {
             // The timeline is the timing mechanism which will request LeanProfiles at a rate specified by the refresh
             // interval.
-            this.timeline.pause();
+            timeline.pause();
         }
         else
         {
             // The timeline is the timing mechanism which will request LeanProfiles at a rate specified by the refresh
             // interval.
-            this.timeline.play();
+            timeline.play();
 
             // If any unrequested LeanProfiles were emitted by the ProfileSource while frozen (which should only happen
             // if the Profiler Agent has finished, which will trigger an end-of-log event), these are cached in the
             // cachedProfile property. When unfreezing, such cached profiles are processed here, to ensure the most
             // recent emitted LeanProfile is definitely shown.
-            this.appCtx.execute(new AggregateProfileTask(ProfileContext.this, this.cachedProfile));
+            appCtx.execute(new AggregateProfileTask(ProfileContext.this, cachedProfile));
         }
     }
 
@@ -251,20 +268,41 @@ public class ProfileContext
             public void accept(LeanProfile profile)
             {
                 // Don't do anything in trivial situations.
-                if (profile == null || profile == ProfileContext.this.cachedProfile)
+                if (profile == null || profile == cachedProfile)
                 {
                     return;
                 }
 
-                ProfileContext.this.cachedProfile = profile;
+                cachedProfile = profile;
 
-                if (!ProfileContext.this.frozen)
+                if (!frozen)
                 {
-                    ProfileContext.this.appCtx
-                        .execute(new AggregateProfileTask(ProfileContext.this, profile));
+                    appCtx.execute(new AggregateProfileTask(ProfileContext.this, profile));
                 }
             }
         };
+    }
+
+    /**
+     * Increase the reference count.
+     */
+    public void addReference()
+    {
+        referenceCount++;
+    }
+
+    /**
+     * Decrease the reference count. If it reaches 0, clean up all resources.
+     */
+    public void removeReference()
+    {
+        referenceCount--;
+
+        if (referenceCount == 0)
+        {
+            appCtx.unregisterProfileContext(this);
+            cleanup();
+        }
     }
 
     /**
@@ -286,10 +324,10 @@ public class ProfileContext
     {
         // Since a TimeLine is not guaranteed to stop immediately, we use this mechanism that a new TimeLine is started
         // only when the Timeline has definitely stopped, to avoid any potential concurrency issues.
-        this.timeline.setOnFinished(event -> newTimeline());
+        timeline.setOnFinished(event -> newTimeline());
 
         // Aaaaand... Cut !
-        this.timeline.stop();
+        timeline.stop();
     }
 
     /**
@@ -298,9 +336,25 @@ public class ProfileContext
      */
     private void newTimeline()
     {
-        this.timeline = new Timeline(
-            new KeyFrame(this.refreshInterval, e -> this.profileSource.requestProfile()));
-        this.timeline.setCycleCount(Timeline.INDEFINITE);
-        this.timeline.play();
+        timeline = new Timeline(
+            new KeyFrame(refreshInterval, e -> profileSource.requestProfile()));
+        timeline.setCycleCount(Timeline.INDEFINITE);
+        timeline.play();
+    }
+
+    /**
+     * Clean up all resources.
+     */
+    private void cleanup()
+    {
+        if (conductor != null)
+        {
+            conductor.stop();
+        }
+
+        if (timeline != null)
+        {
+            timeline.stop();
+        }
     }
 }

@@ -41,7 +41,7 @@
         </MenuBar>
       </top>
       <center>
-        <TabPane fx:id="profileTabs" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" tabClosingPolicy="UNAVAILABLE" BorderPane.alignment="CENTER" />
+        <TabPane fx:id="profileTabs" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" tabClosingPolicy="ALL_TABS" BorderPane.alignment="CENTER" />
       </center>
       <bottom>
         <HBox alignment="CENTER_LEFT" maxHeight="20.0" maxWidth="1.7976931348623157E308" minHeight="20.0" prefHeight="20.0" BorderPane.alignment="CENTER_LEFT">

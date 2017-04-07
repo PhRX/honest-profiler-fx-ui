@@ -195,6 +195,13 @@ public abstract class AbstractViewController<T> extends AbstractController
         initializeFilters(applicationContext);
     }
 
+    // Controller Management Methods
+    
+    /**
+     * Cleans up the controller resources when it is no longer needed.
+     */
+    public abstract void close();
+    
     // Grouping-related Methods
 
     /**

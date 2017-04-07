@@ -37,6 +37,7 @@ public class Conductor
     private final LogSource source;
     private final LogParser parser;
     private final boolean continuous;
+    private volatile boolean stopped;
 
     public Conductor(
         final Logger logger,
@@ -53,6 +54,18 @@ public class Conductor
 
     public boolean poll()
     {
+        if(stopped)
+        {
+            try
+            {
+                source.close();
+            }
+            catch(Throwable t) {
+                // Ignore
+            }
+            return false;
+        }
+        
         try
         {
             AmountRead amount = parser.readRecord(source.read());
@@ -112,4 +125,8 @@ public class Conductor
         }
     }
 
+    public void stop()
+    {
+        stopped = true;
+    }
 }

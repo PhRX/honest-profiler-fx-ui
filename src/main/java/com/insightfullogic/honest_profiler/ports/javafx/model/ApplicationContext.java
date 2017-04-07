@@ -129,6 +129,18 @@ public final class ApplicationContext
     }
 
     /**
+     * Unregisters a {@link ProfileContext} from this ApplicationContext, making it unavailable as shared state.
+     * <p>
+     *
+     * @param context the {@link ProfileContext} to be unregistered
+     */
+    public void unregisterProfileContext(ProfileContext context)
+    {
+        nameToContextMap.remove(context.getName());
+        pathToContextMap.remove(context.getFile().getAbsolutePath());
+    }
+
+    /**
      * Returns a list of the names of all known {@link ProfileContext}s.
      * <p>
      *
@@ -147,18 +159,18 @@ public final class ApplicationContext
     public void setConfiguration(Configuration configuration)
     {
         FormattingConfiguration displayFmtCfg = configuration.getDisplayFormattingConfiguration();
-        this.integerDisplayFormat = displayFmtCfg.getIntegerFormatter();
-        this.numberDisplayFormat = displayFmtCfg.getNumberFormatter();
-        this.percentDisplayFormat = displayFmtCfg.getPercentFormatter();
-        this.timeDisplayFormat = displayFmtCfg.getTimeFormatter();
-        this.timeDisplayConverter = nanos -> convert(displayFmtCfg.getTimeUnit(), nanos);
+        integerDisplayFormat = displayFmtCfg.getIntegerFormatter();
+        numberDisplayFormat = displayFmtCfg.getNumberFormatter();
+        percentDisplayFormat = displayFmtCfg.getPercentFormatter();
+        timeDisplayFormat = displayFmtCfg.getTimeFormatter();
+        timeDisplayConverter = nanos -> convert(displayFmtCfg.getTimeUnit(), nanos);
 
         FormattingConfiguration exportFmtCfg = configuration.getExportFormattingConfiguration();
-        this.integerExportFormat = exportFmtCfg.getIntegerFormatter();
-        this.numberExportFormat = exportFmtCfg.getNumberFormatter();
-        this.percentExportFormat = exportFmtCfg.getPercentFormatter();
-        this.timeExportFormat = exportFmtCfg.getTimeFormatter();
-        this.timeExportConverter = nanos -> convert(exportFmtCfg.getTimeUnit(), nanos);
+        integerExportFormat = exportFmtCfg.getIntegerFormatter();
+        numberExportFormat = exportFmtCfg.getNumberFormatter();
+        percentExportFormat = exportFmtCfg.getPercentFormatter();
+        timeExportFormat = exportFmtCfg.getTimeFormatter();
+        timeExportConverter = nanos -> convert(exportFmtCfg.getTimeUnit(), nanos);
 
         this.configuration.set(configuration);
     }
@@ -361,7 +373,7 @@ public final class ApplicationContext
      */
     public void stop()
     {
-        this.executorService.shutdown();
+        executorService.shutdown();
     }
 
     // View Creation Methods

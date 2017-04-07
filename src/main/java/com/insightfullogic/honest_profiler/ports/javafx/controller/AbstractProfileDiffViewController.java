@@ -137,9 +137,21 @@ public abstract class AbstractProfileDiffViewController<T, U> extends AbstractVi
         this.baseContext = baseContext;
         this.newContext = newContext;
 
+        this.baseContext.addReference();
+        this.newContext.addReference();
+
         // Called here because for the Diff column headers, the profile contexts are needed to display the profile
         // number label.
         initializeTable();
+    }
+
+    // Controller Management Methods
+    
+    public void close()
+    {
+        setActive(false);
+        this.baseContext.removeReference();
+        this.newContext.removeReference();
     }
 
     // Source-Target Binding

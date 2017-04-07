@@ -86,6 +86,7 @@ public abstract class AbstractProfileViewController<T, U> extends AbstractViewCo
     public void setProfileContext(ProfileContext profileContext)
     {
         this.profileContext = profileContext;
+        this.profileContext.addReference();
 
         initializeTable();
     }
@@ -99,6 +100,14 @@ public abstract class AbstractProfileViewController<T, U> extends AbstractViewCo
     protected T getTarget()
     {
         return target.get();
+    }
+
+    // Controller Management Methods
+    
+    public void close()
+    {
+        setActive(false);
+        this.profileContext.removeReference();
     }
 
     // Source-Target Binding

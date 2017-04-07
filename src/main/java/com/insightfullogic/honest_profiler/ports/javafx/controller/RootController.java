@@ -31,6 +31,8 @@ import static org.slf4j.LoggerFactory.getLogger;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import com.insightfullogic.honest_profiler.core.MachineListener;
@@ -40,6 +42,7 @@ import com.insightfullogic.honest_profiler.ports.javafx.controller.configuration
 import com.insightfullogic.honest_profiler.ports.javafx.model.ApplicationContext;
 import com.insightfullogic.honest_profiler.ports.javafx.model.ProfileContext;
 import com.insightfullogic.honest_profiler.ports.javafx.model.task.InitializeProfileTask;
+import com.insightfullogic.honest_profiler.ports.javafx.util.ResourceUtil;
 import com.insightfullogic.honest_profiler.ports.sources.LocalMachineSource;
 
 import javafx.concurrent.Task;
@@ -83,6 +86,9 @@ public class RootController extends AbstractController implements MachineListene
 
     private LocalMachineSource machineSource;
 
+    // Set of full paths of files currently being opened (i.e. no ProfileContext has been registered yet)
+    private Set<String> opening;
+
     // FXML Implementation
 
     @Override
@@ -92,6 +98,8 @@ public class RootController extends AbstractController implements MachineListene
         super.initialize();
 
         setApplicationContext(new ApplicationContext(this));
+
+        opening = new HashSet<>();
 
         // Bind the InfoBar Node to the ApplicationContext.
         info.textProperty().bind(appCtx().getInfo());
@@ -223,9 +231,13 @@ public class RootController extends AbstractController implements MachineListene
     private void handleNewProfile(Tab tab, ProfileRootController controller,
         ProfileContext profileContext)
     {
+        opening.remove(profileContext.getFile().getAbsolutePath());
+
         controller.setApplicationContext(appCtx());
         controller.setProfileContext(profileContext);
         initializeProfileTabTitle(tab, profileContext);
+        tab.setOnClosed(event -> controller.close());
+        tab.setClosable(true);
 
         tab.getContent().setVisible(true);
     }
@@ -256,6 +268,8 @@ public class RootController extends AbstractController implements MachineListene
         addProfileNr(tabInfo, baseCtx);
         tabInfo.getChildren().add(new Label("<->"));
         addProfileNr(tabInfo, newCtx);
+        tab.setOnClosed(event -> controller.close());
+        tab.setClosable(true);
 
         runLater(() -> tab.getContent().setVisible(true));
     }
@@ -280,7 +294,7 @@ public class RootController extends AbstractController implements MachineListene
     }
 
     /**
-     * Loads the View using the specifie FXML file into the {@link Tab}.
+     * Loads the View using the specified FXML file into the {@link Tab}.
      * <p>
      *
      * @param <T> the type of the resulting controller
@@ -316,6 +330,7 @@ public class RootController extends AbstractController implements MachineListene
     private Tab newLoadingTab()
     {
         Tab tab = new Tab(appCtx().textFor(CONTENT_TAB_LOADING));
+        tab.setClosable(false);
         tab.setGraphic(getProgressIndicator(15, 15));
         return tab;
     }
@@ -335,9 +350,19 @@ public class RootController extends AbstractController implements MachineListene
 
         if (file != null)
         {
+            if (opening.contains(file.getAbsolutePath()))
+            {
+                showErrorDialog(
+                    appCtx().textFor(ResourceUtil.TITLE_DIALOG_ERR_BEINGOPENED),
+                    appCtx().textFor(ResourceUtil.HEADER_DIALOG_ERR_BEINGOPENED),
+                    appCtx().textFor(ResourceUtil.MESSAGE_DIALOG_ERR_BEINGOPENED));
+                return;
+            }
+
             Integer id = appCtx().getContextIdByPath(file);
             if (id == null)
             {
+                opening.add(file.getAbsolutePath());
                 fileBasedAction.accept(file);
             }
             else

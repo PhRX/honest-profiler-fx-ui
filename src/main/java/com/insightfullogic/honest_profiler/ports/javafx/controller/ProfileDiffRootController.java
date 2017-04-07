@@ -150,6 +150,16 @@ public class ProfileDiffRootController extends AbstractController
         viewChoice.getSelectionModel().select(FLAT);
     }
 
+    // Controller Management Methods
+
+    /**
+     * Clean up resources.
+     */
+    public void close()
+    {
+        controllerMap.forEach((type, list) -> list.forEach(ctrl -> ctrl.close()));
+    }
+
     // View Switch
 
     /**

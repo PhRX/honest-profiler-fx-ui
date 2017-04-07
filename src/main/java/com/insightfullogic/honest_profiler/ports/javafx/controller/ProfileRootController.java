@@ -201,6 +201,16 @@ public class ProfileRootController extends AbstractController
         freezeButton.setDisable(prCtx.getMode() != LIVE);
     }
 
+    // Controller Management Methods
+
+    /**
+     * Clean up resources.
+     */
+    public void close()
+    {
+        controllerMap.forEach((type, list) -> list.forEach(ctrl -> ctrl.close()));
+    }
+
     // Sample Count Display
 
     /**
