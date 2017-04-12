@@ -8,6 +8,7 @@ import static java.util.concurrent.Executors.newCachedThreadPool;
 import static java.util.stream.Collectors.toList;
 
 import java.io.File;
+import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.List;
@@ -34,6 +35,33 @@ import javafx.scene.control.Tab;
  */
 public final class ApplicationContext
 {
+    // Class Methods
+
+    /**
+     * Helper method to standardize file identification, used to prevent the application to open the same file twice.
+     * <p>
+     * The canonical path is used as unique identifier, to ensure symlinks are resolved. As fallback, the absolute path
+     * is returned.
+     * <p>
+     * The file existence checking logic at the moment is messy and should be replaced in a later refactor, using a
+     * proper id from the LogSource and with a centralized repository encapsulating the logic.
+     * <p>
+     *
+     * @param file the file for which the id is generated
+     * @return the canonical path for the file, or failing that, the absolute path
+     */
+    public static final String getFileId(File file)
+    {
+        try
+        {
+            return file.getCanonicalPath();
+        }
+        catch (IOException ioe)
+        {
+            return file.getAbsolutePath();
+        }
+    }
+
     // Instance Properties
 
     // - I18N
@@ -100,7 +128,7 @@ public final class ApplicationContext
      */
     public Integer getContextIdByPath(File file)
     {
-        ProfileContext ctx = pathToContextMap.get(file.getAbsolutePath());
+        ProfileContext ctx = pathToContextMap.get(getFileId(file));
         return ctx == null ? null : ctx.getId();
     }
 
@@ -125,7 +153,7 @@ public final class ApplicationContext
     public void registerProfileContext(ProfileContext context)
     {
         nameToContextMap.put(context.getName(), context);
-        pathToContextMap.put(context.getFile().getAbsolutePath(), context);
+        pathToContextMap.put(getFileId(context.getFile()), context);
     }
 
     /**
@@ -137,7 +165,7 @@ public final class ApplicationContext
     public void unregisterProfileContext(ProfileContext context)
     {
         nameToContextMap.remove(context.getName());
-        pathToContextMap.remove(context.getFile().getAbsolutePath());
+        pathToContextMap.remove(getFileId(context.getFile()));
     }
 
     /**

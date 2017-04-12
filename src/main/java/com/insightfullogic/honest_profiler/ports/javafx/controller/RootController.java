@@ -1,5 +1,6 @@
 package com.insightfullogic.honest_profiler.ports.javafx.controller;
 
+import static com.insightfullogic.honest_profiler.ports.javafx.model.ApplicationContext.getFileId;
 import static com.insightfullogic.honest_profiler.ports.javafx.model.ProfileContext.ProfileMode.LOG;
 import static com.insightfullogic.honest_profiler.ports.javafx.model.configuration.Configuration.DEFAULT_CONFIGURATION;
 import static com.insightfullogic.honest_profiler.ports.javafx.util.DialogUtil.selectLogFile;
@@ -13,14 +14,17 @@ import static com.insightfullogic.honest_profiler.ports.javafx.util.FxUtil.getPr
 import static com.insightfullogic.honest_profiler.ports.javafx.util.FxUtil.loaderFor;
 import static com.insightfullogic.honest_profiler.ports.javafx.util.ResourceUtil.CONTENT_TAB_LOADING;
 import static com.insightfullogic.honest_profiler.ports.javafx.util.ResourceUtil.HEADER_DIALOG_ERR_ALREADYOPENPROFILE;
+import static com.insightfullogic.honest_profiler.ports.javafx.util.ResourceUtil.HEADER_DIALOG_ERR_BEINGOPENED;
 import static com.insightfullogic.honest_profiler.ports.javafx.util.ResourceUtil.HEADER_DIALOG_ERR_OPENPROFILE;
 import static com.insightfullogic.honest_profiler.ports.javafx.util.ResourceUtil.INFO_MENU_ROOT;
 import static com.insightfullogic.honest_profiler.ports.javafx.util.ResourceUtil.INFO_TAB_PROFILE;
 import static com.insightfullogic.honest_profiler.ports.javafx.util.ResourceUtil.INFO_TAB_PROFILEDIFF;
 import static com.insightfullogic.honest_profiler.ports.javafx.util.ResourceUtil.MESSAGE_DIALOG_ERR_ALREADYOPENPROFILE;
+import static com.insightfullogic.honest_profiler.ports.javafx.util.ResourceUtil.MESSAGE_DIALOG_ERR_BEINGOPENED;
 import static com.insightfullogic.honest_profiler.ports.javafx.util.ResourceUtil.MESSAGE_DIALOG_ERR_OPENPROFILE;
 import static com.insightfullogic.honest_profiler.ports.javafx.util.ResourceUtil.MESSAGE_DIALOG_ERR_TASKCANCELED;
 import static com.insightfullogic.honest_profiler.ports.javafx.util.ResourceUtil.TITLE_DIALOG_ERR_ALREADYOPENPROFILE;
+import static com.insightfullogic.honest_profiler.ports.javafx.util.ResourceUtil.TITLE_DIALOG_ERR_BEINGOPENED;
 import static com.insightfullogic.honest_profiler.ports.javafx.util.ResourceUtil.TITLE_DIALOG_ERR_OPENPROFILE;
 import static com.insightfullogic.honest_profiler.ports.javafx.view.Icon.LIVE_16;
 import static com.insightfullogic.honest_profiler.ports.javafx.view.Icon.LOG_16;
@@ -43,6 +47,7 @@ import com.insightfullogic.honest_profiler.ports.javafx.model.ApplicationContext
 import com.insightfullogic.honest_profiler.ports.javafx.model.ProfileContext;
 import com.insightfullogic.honest_profiler.ports.javafx.model.task.InitializeProfileTask;
 import com.insightfullogic.honest_profiler.ports.javafx.util.ResourceUtil;
+import com.insightfullogic.honest_profiler.ports.sources.FileLogSource;
 import com.insightfullogic.honest_profiler.ports.sources.LocalMachineSource;
 
 import javafx.concurrent.Task;
@@ -86,7 +91,8 @@ public class RootController extends AbstractController implements MachineListene
 
     private LocalMachineSource machineSource;
 
-    // Set of full paths of files currently being opened (i.e. no ProfileContext has been registered yet)
+    // Set of ids of files currently being opened (i.e. no ProfileContext has been registered yet).
+    // This is messy, profile management (opening + checks) should be managed properly in a future refactor.
     private Set<String> opening;
 
     // FXML Implementation
@@ -146,7 +152,26 @@ public class RootController extends AbstractController implements MachineListene
         vmItem.setOnAction(event ->
         {
             vmItem.setDisable(true);
-            createNewProfile(vm, true);
+            try
+            {
+                FileLogSource source = (FileLogSource)vm.getLogSourceFromVmArgs();
+                if (canBeOpened(source.getFile()))
+                {
+                    opening.add(getFileId(source.getFile()));
+                    createNewProfile(vm, true);
+                }
+                else
+                {
+                    vmItem.setDisable(false);
+                }
+            }
+            catch (Throwable t)
+            {
+                showErrorDialog(
+                    appCtx().textFor(ResourceUtil.TITLE_DIALOG_ERR_CANNOTOPEN),
+                    appCtx().textFor(ResourceUtil.HEADER_DIALOG_ERR_CANNOTOPEN),
+                    appCtx().textFor(ResourceUtil.MESSAGE_DIALOG_ERR_CANNOTOPEN, t.getMessage()));
+            }
         });
 
         if (monitorMenu != null)
@@ -243,7 +268,7 @@ public class RootController extends AbstractController implements MachineListene
     private void handleNewProfile(Tab tab, ProfileRootController controller,
         ProfileContext profileContext)
     {
-        opening.remove(profileContext.getFile().getAbsolutePath());
+        opening.remove(getFileId(profileContext.getFile()));
 
         controller.setApplicationContext(appCtx());
         controller.setProfileContext(profileContext);
@@ -360,31 +385,42 @@ public class RootController extends AbstractController implements MachineListene
         File file = selectLogFile(appCtx());
         setRootDisabled(false);
 
-        if (file != null)
+        if (file != null && canBeOpened(file))
         {
-            if (opening.contains(file.getAbsolutePath()))
-            {
-                showErrorDialog(
-                    appCtx().textFor(ResourceUtil.TITLE_DIALOG_ERR_BEINGOPENED),
-                    appCtx().textFor(ResourceUtil.HEADER_DIALOG_ERR_BEINGOPENED),
-                    appCtx().textFor(ResourceUtil.MESSAGE_DIALOG_ERR_BEINGOPENED));
-                return;
-            }
-
-            Integer id = appCtx().getContextIdByPath(file);
-            if (id == null)
-            {
-                opening.add(file.getAbsolutePath());
-                fileBasedAction.accept(file);
-            }
-            else
-            {
-                showErrorDialog(
-                    appCtx().textFor(TITLE_DIALOG_ERR_ALREADYOPENPROFILE),
-                    appCtx().textFor(HEADER_DIALOG_ERR_ALREADYOPENPROFILE),
-                    appCtx().textFor(MESSAGE_DIALOG_ERR_ALREADYOPENPROFILE, id.toString()));
-            }
+            opening.add(getFileId(file));
+            fileBasedAction.accept(file);
         }
+    }
+
+    /**
+     * Checks whether the given file is already being opened or a {@link ProfileContext} already exists for it, and
+     * displays the appropriate error dialog if it does.
+     *
+     * @param file the {@link File} which will be checked
+     * @return a boolean indicating whether the given path is not yet open
+     */
+    private boolean canBeOpened(File file)
+    {
+        if (opening.contains(getFileId(file)))
+        {
+            showErrorDialog(
+                appCtx().textFor(TITLE_DIALOG_ERR_BEINGOPENED),
+                appCtx().textFor(HEADER_DIALOG_ERR_BEINGOPENED),
+                appCtx().textFor(MESSAGE_DIALOG_ERR_BEINGOPENED));
+            return false;
+        }
+
+        Integer id = appCtx().getContextIdByPath(file);
+        if (id != null)
+        {
+            showErrorDialog(
+                appCtx().textFor(TITLE_DIALOG_ERR_ALREADYOPENPROFILE),
+                appCtx().textFor(HEADER_DIALOG_ERR_ALREADYOPENPROFILE),
+                appCtx().textFor(MESSAGE_DIALOG_ERR_ALREADYOPENPROFILE, id.toString()));
+            return false;
+        }
+
+        return true;
     }
 
     /**

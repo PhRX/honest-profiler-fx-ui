@@ -143,6 +143,7 @@ public final class ResourceUtil
     public static final String TITLE_DIALOG_ERR_EXPORTPROFILE = "dialog.err.exportProfile.title";
     public static final String TITLE_DIALOG_ERR_ALREADYOPENPROFILE = "dialog.err.alreadyOpen.title";
     public static final String TITLE_DIALOG_ERR_BEINGOPENED = "dialog.err.beingOpened.title";
+    public static final String TITLE_DIALOG_ERR_CANNOTOPEN = "dialog.err.cannotOpen.title";
 
     // - Dialog Headers
 
@@ -150,6 +151,7 @@ public final class ResourceUtil
     public static final String HEADER_DIALOG_ERR_EXPORTPROFILE = "dialog.err.exportProfile.header";
     public static final String HEADER_DIALOG_ERR_ALREADYOPENPROFILE = "dialog.err.alreadyOpen.header";
     public static final String HEADER_DIALOG_ERR_BEINGOPENED = "dialog.err.beingOpened.header";
+    public static final String HEADER_DIALOG_ERR_CANNOTOPEN = "dialog.err.cannotOpen.header";
 
     // - Dialog Content
 
@@ -158,6 +160,7 @@ public final class ResourceUtil
     public static final String MESSAGE_DIALOG_ERR_EXPORTPROFILE = "dialog.err.exportProfile.message";
     public static final String MESSAGE_DIALOG_ERR_ALREADYOPENPROFILE = "dialog.err.alreadyOpen.message";
     public static final String MESSAGE_DIALOG_ERR_BEINGOPENED = "dialog.err.beingOpened.message";
+    public static final String MESSAGE_DIALOG_ERR_CANNOTOPEN = "dialog.err.cannotOpen.message";
 
     // - File Types
 
